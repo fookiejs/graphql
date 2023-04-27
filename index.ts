@@ -1,1 +1,1 @@
-export * as Graphql from "./packages/graphql"
+export * from "./packages/graphql"
