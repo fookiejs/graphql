@@ -5,16 +5,16 @@ import { create_query_resolver } from "./utils/create_query_resolver"
 
 const filter_types = `
 input string_filter {
-  equals: String
-  not_equals: String
+  eq: String
+  not_eq: String
   in: [String]
   not_in: [String]
   like: String
 }
 
 input integer_filter {
-  equals: Int
-  not_equals: Int
+  eq: Int
+  not_eq: Int
   in: [Int]
   not_in: [Int]
   gte: Int
@@ -24,8 +24,8 @@ input integer_filter {
 }
 
 input float_filter {
-  equals: Float
-  not_equals: Float
+  eq: Float
+  not_eq: Float
   in: [Float]
   not_in: [Float]
   gte: Float
@@ -35,7 +35,7 @@ input float_filter {
 }
 
 input boolean_filter {
-  equals: Boolean
+  eq: Boolean
 }
 `
 
@@ -62,11 +62,11 @@ export function create(Fookie) {
             const temp_input = resolve_input(temp_type)
 
             if (model.schema[field].relation) {
-                typeFields[`${field}_entity`] = `${model.schema[field].relation.name}`
+                typeFields[`${field}_entity`] = { value: `${model.schema[field].relation.name}` }
             }
 
-            typeFields[field] = temp_type
-            inputFields[field] = temp_input
+            typeFields[field] = { value: temp_type }
+            inputFields[field] = { value: temp_input }
 
             if (model.schema[field].relation) {
                 resolvers[model.name] = {
@@ -87,9 +87,9 @@ export function create(Fookie) {
             }
         }
 
-        typeDefs.input[model.name + "_payload"] = inputFields
+        typeDefs.input[model.name + "_filter"] = inputFields
         typeDefs.type[model.name] = typeFields
-        typeDefs.Query[model.name] = `${model.name}_payload`
+        typeDefs.Query[model.name] = { value: `${model.name}_filter` }
 
         resolvers.Query[model.name] = create_query_resolver(Fookie, model)
     }
@@ -97,21 +97,27 @@ export function create(Fookie) {
     for (const model of Fookie.Core.models) {
         for (const field of lodash.keys(model.schema)) {
             if (model.schema[field].relation) {
-                typeDefs.type[model.schema[field].relation.name]["all_" + model.name] = `[${model.name}]`
+                typeDefs.type[model.schema[field].relation.name]["all_" + model.name] = {
+                    value: `[${model.name}]`,
+                    all: true,
+                    model: model,
+                }
                 if (!resolvers[model.schema[field].relation.name]) {
                     resolvers[model.schema[field].relation.name] = {}
                 }
-                resolvers[model.schema[field].relation.name]["all_" + model.name] = async function (parent, a, b, c) {
+                resolvers[model.schema[field].relation.name]["all_" + model.name] = async function (parent, payload, b, c) {
+                    const query = lodash.omit(payload.query, field)
                     const response = await Fookie.Core.run({
                         model: model,
                         method: Fookie.Method.Read,
                         query: {
                             filter: {
                                 [field]: parent[model.database.pk],
+                                ...query,
                             },
                         },
                     })
-                    console.log(a)
+
                     return response.data
                 }
             }
@@ -120,25 +126,43 @@ export function create(Fookie) {
 
     let result = ""
 
-    for (const category in typeDefs) {
-        if (category === "Query") {
-            result += "type Query {\n"
-            for (const typeName in typeDefs[category]) {
-                result += `  ${typeName}(payload: ${typeDefs[category][typeName]}): [${typeName}]\n`
-            }
-            result += "}\n\n"
-        } else {
-            for (const typeName in typeDefs[category]) {
-                result += `${category} ${typeName} {\n`
+    //QUERY
+    result += "type Query {\n"
 
-                for (const field in typeDefs[category][typeName]) {
-                    result += `  ${field}: ${typeDefs[category][typeName][field]}\n`
-                }
+    for (const typeName in typeDefs.Query) {
+        result += `  ${typeName}(query: ${typeDefs.Query[typeName].value}): [${typeName}]\n`
+    }
+    result += "}\n\n"
 
-                result += "}\n\n"
+    //TYPE
+    for (const typeName in typeDefs.type) {
+        result += `type ${typeName} {\n`
+
+        for (const field in typeDefs.type[typeName]) {
+            if (typeDefs.type[typeName][field].all) {
+                const model = typeDefs.type[typeName][field].model
+                result += `  ${field}(query: ${model.name}_filter): ${typeDefs.type[typeName][field].value}\n` //TODO
+            } else {
+                result += `  ${field}: ${typeDefs.type[typeName][field].value}\n`
             }
         }
+
+        result += "}\n\n"
     }
+
+    //INPUT
+    for (const typeName in typeDefs.input) {
+        result += `input ${typeName} {\n`
+
+        for (const field in typeDefs.input[typeName]) {
+            result += `  ${field}: ${typeDefs.input[typeName][field].value}\n`
+        }
+
+        result += "}\n\n"
+    }
+
+    console.log(result)
+
     return {
         typeDefs: `
         ${filter_types}
