@@ -1,7 +1,6 @@
 import { resolve_type } from "./utils/resolve_types"
 import * as lodash from "lodash"
 import { resolve_input } from "./utils/resolve_input"
-import { create_query_resolver } from "./utils/create_query_resolver"
 
 const filter_types = `
 input string_filter {
@@ -12,7 +11,7 @@ input string_filter {
   like: String
 }
 
-input integer_filter {
+input int_filter {
   eq: Int
   not_eq: Int
   in: [Int]
@@ -44,10 +43,12 @@ export function create(Fookie) {
         input: {},
         type: {},
         Query: {},
+        Mutation: {},
     }
 
     const resolvers = {
         Query: {},
+        Mutation: {},
     }
 
     for (const model of Fookie.Core.models) {
@@ -59,7 +60,7 @@ export function create(Fookie) {
 
         for (const field of lodash.keys(model.schema)) {
             const temp_type = resolve_type(Fookie, model.schema[field])
-            const temp_input = resolve_input(temp_type)
+            const temp_input = temp_type
 
             if (model.schema[field].relation) {
                 typeFields[`${field}_entity`] = { value: `${model.schema[field].relation.name}` }
@@ -87,11 +88,20 @@ export function create(Fookie) {
             }
         }
 
-        typeDefs.input[model.name + "_filter"] = inputFields
+        typeDefs.input[model.name] = inputFields
         typeDefs.type[model.name] = typeFields
         typeDefs.Query[model.name] = { value: `${model.name}_filter` }
 
-        resolvers.Query[model.name] = create_query_resolver(Fookie, model)
+        resolvers.Query[model.name] = async function (parent, query, context, info) {
+            const response = await Fookie.Core.run({
+                token: "abc",
+                model: model,
+                method: Fookie.Method.Read,
+                query: query,
+            })
+
+            return response.data
+        }
     }
 
     for (const model of Fookie.Core.models) {
@@ -150,9 +160,40 @@ export function create(Fookie) {
         result += "}\n\n"
     }
 
-    //INPUT
+    // FILTER INPUT
     for (const typeName in typeDefs.input) {
-        result += `input ${typeName} {\n`
+        result += `input ${typeName}_filter {\n`
+
+        for (const field in typeDefs.input[typeName]) {
+            result += `  ${field}: ${resolve_input(typeDefs.input[typeName][field].value)}\n`
+        }
+
+        result += "}\n\n"
+    }
+
+    // FILTER WHERE
+    for (const typeName in typeDefs.input) {
+        result += `input ${typeName}_filter {\n`
+
+        for (const field in typeDefs.input[typeName]) {
+            result += `  ${field}: ${resolve_input(typeDefs.input[typeName][field].value)}\n`
+        }
+
+        result += "}\n\n"
+    }
+
+    // FILTER QUERY
+    for (const typeName in typeDefs.input) {
+        result += ` input ${typeName}_query {
+            offset: Int,
+            limit: Int,
+            filter: ${typeName}_filter
+        }`
+    }
+
+    // CREATE INPUT
+    for (const typeName in typeDefs.input) {
+        result += `input ${typeName}_input {\n`
 
         for (const field in typeDefs.input[typeName]) {
             result += `  ${field}: ${typeDefs.input[typeName][field].value}\n`
@@ -161,7 +202,93 @@ export function create(Fookie) {
         result += "}\n\n"
     }
 
-    console.log(result)
+    // Mutations type
+    result += "type Mutation {\n"
+
+    for (const typeName in typeDefs.input) {
+        result += `  create_${typeName}(body: ${typeName}_input): ${typeName}\n`
+        result += `  update_${typeName}(query: ${typeName}_query, body: ${typeName}_input): Boolean\n`
+        result += `  delete_${typeName}(query: ${typeName}_query): Boolean\n`
+        result += `  count_${typeName}(query: ${typeName}_query): Int\n`
+        result += `  sum_${typeName}(query: ${typeName}_query , field: String): Float\n`
+
+        resolvers.Mutation[`create_${typeName}`] = async function (parent, { body }, context) {
+            const response = await Fookie.Core.run({
+                token: context.token || "",
+                model: typeName,
+                method: Fookie.Method.Create,
+                body,
+            })
+
+            if (!response.status) {
+                throw Error(response.error)
+            }
+
+            return response.data
+        }
+
+        resolvers.Mutation[`update_${typeName}`] = async function (_, { query, body }, context) {
+            const response = await Fookie.Core.run({
+                token: context.token || "",
+                model: typeName,
+                method: Fookie.Method.Update,
+                query,
+                body: body,
+            })
+            if (!response.status) {
+                throw Error(response.error)
+            }
+
+            return response.data
+        }
+
+        resolvers.Mutation[`delete_${typeName}`] = async function (_, { query }, context) {
+            const response = await Fookie.Core.run({
+                token: context.token || "",
+                model: typeName,
+                method: Fookie.Method.Delete,
+                query,
+            })
+            if (!response.status) {
+                throw Error(response.error)
+            }
+            return response.data
+        }
+
+        resolvers.Mutation[`count_${typeName}`] = async function (_, { query }, context) {
+            const response = await Fookie.Core.run({
+                token: context.token || "",
+                model: typeName,
+                method: Fookie.Method.Count,
+                query,
+            })
+            if (!response.status) {
+                throw Error(response.error)
+            }
+            return response.data
+        }
+
+        resolvers.Mutation[`sum_${typeName}`] = async function (_, { query, field }, context) {
+            const response = await Fookie.Core.run({
+                token: context.token || "",
+                model: typeName,
+                method: Fookie.Method.Sum,
+                query,
+                options: {
+                    field,
+                },
+            })
+            if (!response.status) {
+                throw Error(response.error)
+            }
+            return response.data
+        }
+        result += "\n"
+    }
+
+    result += "}\n\n"
+
+    //    console.log(result)
 
     return {
         typeDefs: `

@@ -16,5 +16,5 @@ export const resolve_type = function (Fookie, field) {
     } else if (field.type === Fookie.Type.IntegerArray) {
         response = `[Int]`
     }
-    return response + required
+    return response
 }
