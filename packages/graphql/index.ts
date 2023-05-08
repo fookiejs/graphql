@@ -55,8 +55,8 @@ export function create(Fookie) {
         if (model.name === "Query") {
             throw Error("Model name can not be 'Query' ")
         }
-        let typeFields = {}
-        let inputFields = {}
+        const typeFields = {}
+        const inputFields = {}
 
         for (const field of lodash.keys(model.schema)) {
             const temp_type = resolve_type(Fookie, model.schema[field])
