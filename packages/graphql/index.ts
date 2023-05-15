@@ -187,7 +187,6 @@ export function create(Fookie) {
                     }
 
                     query.filter[field] = parent[model.database.pk]
-                    console.log(query)
 
                     const response = await Fookie.Core.run({
                         token: context.token || "",
