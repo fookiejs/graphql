@@ -71,8 +71,9 @@ export function create(Fookie) {
 
             if (model.schema[field].relation) {
                 resolvers[model.name] = {
-                    [field + "_entity"]: async function (parent, query) {
+                    [field + "_entity"]: async function (parent, query, context, info) {
                         const response = await Fookie.Core.run({
+                            token: context.token || "",
                             model: model.schema[field].relation,
                             method: Fookie.Method.Read,
                             query: {
@@ -94,7 +95,7 @@ export function create(Fookie) {
 
         resolvers.Query[model.name] = async function (parent, query, context, info) {
             const response = await Fookie.Core.run({
-                token: "abc",
+                token: context.token || "",
                 model: model,
                 method: Fookie.Method.Read,
                 query: query,
@@ -118,11 +119,21 @@ export function create(Fookie) {
                     model: model,
                 }
 
+                typeDefs.type[model.schema[field].relation.name]["count_" + model.name] = {
+                    count: true,
+                    model: model,
+                }
+
                 if (!resolvers[model.schema[field].relation.name]) {
                     resolvers[model.schema[field].relation.name] = {}
                 }
 
-                resolvers[model.schema[field].relation.name]["all_" + model.name] = async function (parent, payload, b, c) {
+                resolvers[model.schema[field].relation.name]["all_" + model.name] = async function (
+                    parent,
+                    payload,
+                    context,
+                    info
+                ) {
                     const query: any = lodash.omit(payload.query, field)
                     if (!query.filter) {
                         query.filter = {}
@@ -131,6 +142,7 @@ export function create(Fookie) {
                     query.filter[field] = parent[model.database.pk]
 
                     const response = await Fookie.Core.run({
+                        token: context.token || "",
                         model: model,
                         method: Fookie.Method.Read,
                         query: query,
@@ -138,7 +150,12 @@ export function create(Fookie) {
 
                     return response.data
                 }
-                resolvers[model.schema[field].relation.name]["sum_" + model.name] = async function (parent, payload, b, c) {
+                resolvers[model.schema[field].relation.name]["sum_" + model.name] = async function (
+                    parent,
+                    payload,
+                    context,
+                    info
+                ) {
                     const query: any = lodash.omit(payload.query, field)
                     if (!query.filter) {
                         query.filter = {}
@@ -147,12 +164,36 @@ export function create(Fookie) {
                     query.filter[field] = parent[model.database.pk]
 
                     const response = await Fookie.Core.run({
+                        token: context.token || "",
                         model: model,
                         method: Fookie.Method.Sum,
                         query,
                         options: {
                             field: payload.field,
                         },
+                    })
+
+                    return response.data
+                }
+                resolvers[model.schema[field].relation.name]["count_" + model.name] = async function (
+                    parent,
+                    payload,
+                    context,
+                    info
+                ) {
+                    const query: any = lodash.omit(payload.query, field)
+                    if (!query.filter) {
+                        query.filter = {}
+                    }
+
+                    query.filter[field] = parent[model.database.pk]
+                    console.log(query)
+
+                    const response = await Fookie.Core.run({
+                        token: context.token || "",
+                        model: model,
+                        method: Fookie.Method.Count,
+                        query,
                     })
 
                     return response.data
@@ -182,6 +223,9 @@ export function create(Fookie) {
             } else if (typeDefs.type[typeName][field].sum) {
                 const model = typeDefs.type[typeName][field].model
                 result += `  ${field}(query: ${model.name}_query, field:String): Float\n`
+            } else if (typeDefs.type[typeName][field].count) {
+                const model = typeDefs.type[typeName][field].model
+                result += `  ${field}(query: ${model.name}_query): Int\n`
             } else {
                 result += `  ${field}: ${typeDefs.type[typeName][field].value}\n`
             }
