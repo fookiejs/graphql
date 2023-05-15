@@ -90,7 +90,7 @@ export function create(Fookie) {
 
         typeDefs.input[model.name] = inputFields
         typeDefs.type[model.name] = typeFields
-        typeDefs.Query[model.name] = { value: `${model.name}_filter` }
+        typeDefs.Query[model.name] = { value: `${model.name}_query` }
 
         resolvers.Query[model.name] = async function (parent, query, context, info) {
             const response = await Fookie.Core.run({
@@ -112,19 +112,46 @@ export function create(Fookie) {
                     all: true,
                     model: model,
                 }
+
+                typeDefs.type[model.schema[field].relation.name]["sum_" + model.name] = {
+                    sum: true,
+                    model: model,
+                }
+
                 if (!resolvers[model.schema[field].relation.name]) {
                     resolvers[model.schema[field].relation.name] = {}
                 }
+
                 resolvers[model.schema[field].relation.name]["all_" + model.name] = async function (parent, payload, b, c) {
-                    const query = lodash.omit(payload.query, field)
+                    const query: any = lodash.omit(payload.query, field)
+                    if (!query.filter) {
+                        query.filter = {}
+                    }
+
+                    query.filter[field] = parent[model.database.pk]
+
                     const response = await Fookie.Core.run({
                         model: model,
                         method: Fookie.Method.Read,
-                        query: {
-                            filter: {
-                                [field]: parent[model.database.pk],
-                                ...query,
-                            },
+                        query: query,
+                    })
+
+                    return response.data
+                }
+                resolvers[model.schema[field].relation.name]["sum_" + model.name] = async function (parent, payload, b, c) {
+                    const query: any = lodash.omit(payload.query, field)
+                    if (!query.filter) {
+                        query.filter = {}
+                    }
+
+                    query.filter[field] = parent[model.database.pk]
+
+                    const response = await Fookie.Core.run({
+                        model: model,
+                        method: Fookie.Method.Sum,
+                        query,
+                        options: {
+                            field: payload.field,
                         },
                     })
 
@@ -151,7 +178,10 @@ export function create(Fookie) {
         for (const field in typeDefs.type[typeName]) {
             if (typeDefs.type[typeName][field].all) {
                 const model = typeDefs.type[typeName][field].model
-                result += `  ${field}(query: ${model.name}_filter): ${typeDefs.type[typeName][field].value}\n` //TODO
+                result += `  ${field}(query: ${model.name}_query): ${typeDefs.type[typeName][field].value}\n`
+            } else if (typeDefs.type[typeName][field].sum) {
+                const model = typeDefs.type[typeName][field].model
+                result += `  ${field}(query: ${model.name}_query, field:String): Float\n`
             } else {
                 result += `  ${field}: ${typeDefs.type[typeName][field].value}\n`
             }
