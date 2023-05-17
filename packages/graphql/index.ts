@@ -1,7 +1,7 @@
 import { resolve_type } from "./utils/resolve_types"
 import * as lodash from "lodash"
 import { resolve_input } from "./utils/resolve_input"
-
+import { Fookie } from "fookie-types"
 const filter_types = `
 input string_filter {
   eq: String
@@ -38,7 +38,7 @@ input boolean_filter {
 }
 `
 
-export function create(Fookie) {
+export function create(Fookie: Fookie) {
     const typeDefs = {
         input: {},
         type: {},
@@ -66,8 +66,8 @@ export function create(Fookie) {
                 typeFields[`${field}_entity`] = { value: `${model.schema[field].relation.name}` }
             }
 
-            typeFields[field] = { value: temp_type }
-            inputFields[field] = { value: temp_input }
+            typeFields[field] = { value: temp_type, field: model.schema[field] }
+            inputFields[field] = { value: temp_input, field: model.schema[field] }
 
             if (model.schema[field].relation) {
                 resolvers[model.name] = {
@@ -216,6 +216,7 @@ export function create(Fookie) {
         result += `type ${typeName} {\n`
 
         for (const field in typeDefs.type[typeName]) {
+            const required = typeDefs.type[typeName][field].field.required
             if (typeDefs.type[typeName][field].all) {
                 const model = typeDefs.type[typeName][field].model
                 result += `  ${field}(query: ${model.name}_query): ${typeDefs.type[typeName][field].value}\n`
