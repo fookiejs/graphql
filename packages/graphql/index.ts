@@ -93,7 +93,7 @@ export function create(Fookie: Fookie) {
         typeDefs.type[model.name] = typeFields
         typeDefs.Query[model.name] = { value: `${model.name}_query` }
 
-        resolvers.Query[model.name] = async function (parent, query, context, info) {
+        resolvers.Query[model.name] = async function (parent, { query }, context, info) {
             const response = await Fookie.Core.run({
                 token: context.token || "",
                 model: model,
@@ -216,7 +216,6 @@ export function create(Fookie: Fookie) {
         result += `type ${typeName} {\n`
 
         for (const field in typeDefs.type[typeName]) {
-            const required = typeDefs.type[typeName][field].field.required
             if (typeDefs.type[typeName][field].all) {
                 const model = typeDefs.type[typeName][field].model
                 result += `  ${field}(query: ${model.name}_query): ${typeDefs.type[typeName][field].value}\n`
