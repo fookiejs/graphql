@@ -9,6 +9,7 @@
         "lint": "npx eslint packages"
     },
     "dependencies": {
+        "fookie": "^0.999.29",
         "fookie-types": "^1.0.3",
         "lodash": "^4.17.21"
     },
@@ -21,6 +22,9 @@
         "eslint": "^8.36.0",
         "typescript": "^5.0.2",
         "vitest": "^0.29.3"
+    },
+    "peerDependencies": {
+        "fookie": "0.999.29"
     },
     "repository": {
         "type": "git",

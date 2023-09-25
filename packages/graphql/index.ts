@@ -1,7 +1,7 @@
 import { resolve_type } from "./utils/resolve_types"
 import * as lodash from "lodash"
 import { resolve_input } from "./utils/resolve_input"
-import { Fookie } from "fookie-types"
+import * as Fookie from "fookie"
 const filter_types = `
 input string_filter {
   eq: String
@@ -38,7 +38,7 @@ input boolean_filter {
 }
 `
 
-export function create(Fookie: Fookie) {
+export function create() {
     const typeDefs = {
         input: {},
         type: {},
@@ -51,7 +51,7 @@ export function create(Fookie: Fookie) {
         Mutation: {},
     }
 
-    for (const model of Fookie.Core.models) {
+    for (const model of lodash.values(Fookie.Dictionary.Model)) {
         if (model.name === "Query") {
             throw Error("Model name can not be 'Query' ")
         }
@@ -59,7 +59,7 @@ export function create(Fookie: Fookie) {
         const inputFields = {}
 
         for (const field of lodash.keys(model.schema)) {
-            const temp_type = resolve_type(Fookie, model.schema[field])
+            const temp_type = resolve_type(model.schema[field])
             const temp_input = temp_type
 
             if (model.schema[field].relation) {
@@ -72,7 +72,7 @@ export function create(Fookie: Fookie) {
             if (model.schema[field].relation) {
                 resolvers[model.name] = {
                     [field + "_entity"]: async function (parent, query, context, info) {
-                        const response = await Fookie.Core.run({
+                        const response = await Fookie.run({
                             token: context.token || "",
                             model: model.schema[field].relation,
                             method: Fookie.Method.Read,
@@ -94,7 +94,7 @@ export function create(Fookie: Fookie) {
         typeDefs.Query[model.name] = { value: `${model.name}_query` }
 
         resolvers.Query[model.name] = async function (parent, { query }, context, info) {
-            const response = await Fookie.Core.run({
+            const response = await Fookie.run({
                 token: context.token || "",
                 model: model,
                 method: Fookie.Method.Read,
@@ -105,7 +105,7 @@ export function create(Fookie: Fookie) {
         }
     }
 
-    for (const model of Fookie.Core.models) {
+    for (const model of lodash.values(Fookie.Dictionary.Model)) {
         for (const field of lodash.keys(model.schema)) {
             if (model.schema[field].relation) {
                 typeDefs.type[model.schema[field].relation.name]["all_" + model.name] = {
@@ -141,12 +141,15 @@ export function create(Fookie: Fookie) {
 
                     query.filter[field] = parent[model.database.pk]
 
-                    const response = await Fookie.Core.run({
-                        token: context.token || "",
-                        model: model,
-                        method: Fookie.Method.Read,
-                        query: query,
-                    })
+                    const response = await Fookie.run(
+                        {
+                            token: context.token || "",
+                            model: model,
+                            method: Fookie.Method.Read,
+                            query: query,
+                        },
+                        { context }
+                    )
 
                     return response.data
                 }
@@ -163,7 +166,7 @@ export function create(Fookie: Fookie) {
 
                     query.filter[field] = parent[model.database.pk]
 
-                    const response = await Fookie.Core.run({
+                    const response = await Fookie.run({
                         token: context.token || "",
                         model: model,
                         method: Fookie.Method.Sum,
@@ -188,7 +191,7 @@ export function create(Fookie: Fookie) {
 
                     query.filter[field] = parent[model.database.pk]
 
-                    const response = await Fookie.Core.run({
+                    const response = await Fookie.run({
                         token: context.token || "",
                         model: model,
                         method: Fookie.Method.Count,
@@ -286,9 +289,9 @@ export function create(Fookie: Fookie) {
         result += `  sum_${typeName}(query: ${typeName}_query , field: String): Float\n`
 
         resolvers.Mutation[`create_${typeName}`] = async function (parent, { body }, context) {
-            const response = await Fookie.Core.run({
+            const response = await Fookie.run({
                 token: context.token || "",
-                model: typeName,
+                model: Fookie.Dictionary.Model[typeName],
                 method: Fookie.Method.Create,
                 body,
             })
@@ -301,9 +304,9 @@ export function create(Fookie: Fookie) {
         }
 
         resolvers.Mutation[`update_${typeName}`] = async function (_, { query, body }, context) {
-            const response = await Fookie.Core.run({
+            const response = await Fookie.run({
                 token: context.token || "",
-                model: typeName,
+                model: Fookie.Dictionary.Model[typeName],
                 method: Fookie.Method.Update,
                 query,
                 body: body,
@@ -316,9 +319,9 @@ export function create(Fookie: Fookie) {
         }
 
         resolvers.Mutation[`delete_${typeName}`] = async function (_, { query }, context) {
-            const response = await Fookie.Core.run({
+            const response = await Fookie.run({
                 token: context.token || "",
-                model: typeName,
+                model: Fookie.Dictionary.Model[typeName],
                 method: Fookie.Method.Delete,
                 query,
             })
@@ -329,9 +332,9 @@ export function create(Fookie: Fookie) {
         }
 
         resolvers.Mutation[`count_${typeName}`] = async function (_, { query }, context) {
-            const response = await Fookie.Core.run({
+            const response = await Fookie.run({
                 token: context.token || "",
-                model: typeName,
+                model: Fookie.Dictionary.Model[typeName],
                 method: Fookie.Method.Count,
                 query,
             })
@@ -342,9 +345,9 @@ export function create(Fookie: Fookie) {
         }
 
         resolvers.Mutation[`sum_${typeName}`] = async function (_, { query, field }, context) {
-            const response = await Fookie.Core.run({
+            const response = await Fookie.run({
                 token: context.token || "",
-                model: typeName,
+                model: Fookie.Dictionary.Model[typeName],
                 method: Fookie.Method.Sum,
                 query,
                 options: {
@@ -360,8 +363,6 @@ export function create(Fookie: Fookie) {
     }
 
     result += "}\n\n"
-
-    //    console.log(result)
 
     return {
         typeDefs: `
