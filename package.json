@@ -4,7 +4,6 @@
     "version": "0.0.8",
     "main": "dist/index.js",
     "scripts": {
-        "test": "echo 'no-test'",
         "build": "tsc",
         "lint": "npx eslint packages"
     },
@@ -17,14 +16,11 @@
         "@types/lodash": "^4.14.191",
         "@typescript-eslint/eslint-plugin": "^5.56.0",
         "@typescript-eslint/parser": "^5.56.0",
-        "@vitest/coverage-istanbul": "^0.29.3",
-        "@vitest/ui": "^0.29.3",
         "eslint": "^8.36.0",
-        "typescript": "^5.0.2",
-        "vitest": "^0.29.3"
+        "typescript": "^5.0.2"
     },
     "peerDependencies": {
-        "fookie": "0.999.29"
+        "fookie": "0.999.32"
     },
     "repository": {
         "type": "git",
