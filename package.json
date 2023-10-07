@@ -5,10 +5,11 @@
     "main": "dist/index.js",
     "scripts": {
         "build": "tsc",
-        "lint": "npx eslint packages"
+        "lint": "npx eslint packages",
+        "test": "vitest"
     },
     "dependencies": {
-        "fookie": "^0.999.29",
+        "fookie": "^0.999.32",
         "fookie-types": "^1.0.3",
         "lodash": "^4.17.21"
     },
@@ -17,10 +18,8 @@
         "@typescript-eslint/eslint-plugin": "^5.56.0",
         "@typescript-eslint/parser": "^5.56.0",
         "eslint": "^8.36.0",
-        "typescript": "^5.0.2"
-    },
-    "peerDependencies": {
-        "fookie": "0.999.32"
+        "typescript": "^5.0.2",
+        "vitest": "^0.34.6"
     },
     "repository": {
         "type": "git",

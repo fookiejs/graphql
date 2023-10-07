@@ -2,6 +2,7 @@ import { resolve_type } from "./utils/resolve_types"
 import * as lodash from "lodash"
 import { resolve_input } from "./utils/resolve_input"
 import * as Fookie from "fookie"
+
 const filter_types = `
 input string_filter {
   eq: String
@@ -57,6 +58,9 @@ export function create() {
         }
         const typeFields = {}
         const inputFields = {}
+        const pk_field: Fookie.Types.FieldInterface = { type: model.database.pk_type, required: true }
+
+        typeFields[model.database.pk] = { value: resolve_type(pk_field), field: pk_field }
 
         for (const field of lodash.keys(model.schema)) {
             const temp_type = resolve_type(model.schema[field])
