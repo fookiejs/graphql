@@ -60,7 +60,7 @@ export function create() {
         const inputFields = {}
         const pk_field: Fookie.Types.FieldInterface = { type: model.database.pk_type, required: true }
 
-        typeFields[model.database.pk] = { value: resolve_type(pk_field), field: pk_field }
+        typeFields[model.database.pk] = { value: resolve_type(pk_field), field: pk_field, is_pk: true }
 
         for (const field of lodash.keys(model.schema)) {
             const temp_type = resolve_type(model.schema[field])
@@ -208,7 +208,7 @@ export function create() {
         }
     }
 
-    let result = ""
+    let result = "\n"
 
     //QUERY
     result += "type Query {\n"
@@ -216,7 +216,7 @@ export function create() {
     for (const typeName in typeDefs.Query) {
         result += `  ${typeName}(query: ${typeDefs.Query[typeName].value}): [${typeName}]\n`
     }
-    result += "}\n\n"
+    result += "}\n"
 
     //TYPE
     for (const typeName in typeDefs.type) {
@@ -237,38 +237,27 @@ export function create() {
             }
         }
 
-        result += "}\n\n"
+        result += "}\n"
     }
 
     // FILTER INPUT
-    for (const typeName in typeDefs.input) {
+    for (const typeName in typeDefs.type) {
         result += `input ${typeName}_filter {\n`
 
-        for (const field in typeDefs.input[typeName]) {
-            result += `  ${field}: ${resolve_input(typeDefs.input[typeName][field].value)}\n`
+        for (const field in typeDefs.type[typeName]) {
+            result += `  ${field}: ${resolve_input(typeDefs.type[typeName][field].value)}\n`
         }
 
-        result += "}\n\n"
-    }
-
-    // FILTER WHERE
-    for (const typeName in typeDefs.input) {
-        result += `input ${typeName}_filter {\n`
-
-        for (const field in typeDefs.input[typeName]) {
-            result += `  ${field}: ${resolve_input(typeDefs.input[typeName][field].value)}\n`
-        }
-
-        result += "}\n\n"
+        result += "}\n"
     }
 
     // FILTER QUERY
     for (const typeName in typeDefs.input) {
-        result += ` input ${typeName}_query {
-            offset: Int,
-            limit: Int,
-            filter: ${typeName}_filter
-        }`
+        result += `input ${typeName}_query {
+    offset: Int,
+    limit: Int,
+    filter: ${typeName}_filter
+        }\n`
     }
 
     // CREATE INPUT
@@ -279,7 +268,7 @@ export function create() {
             result += `  ${field}: ${typeDefs.input[typeName][field].value}\n`
         }
 
-        result += "}\n\n"
+        result += "}\n"
     }
 
     // Mutations type
@@ -366,7 +355,7 @@ export function create() {
         result += "\n"
     }
 
-    result += "}\n\n"
+    result += "}\n"
 
     return {
         typeDefs: `
